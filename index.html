@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>英文單字小助手</title>
+  <meta name="description" content="免費的英漢單字查詢、收藏與複習測驗工具" />
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2B2620" />
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="單字小助手" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="icon" href="icon-512.png" sizes="512x512" type="image/png" />
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="eyebrow">VOCAB · 單字卡</div>
+      <h1>英文單字小助手</h1>
+      <p class="subtitle">
+        字典資料來自免費的 Free Dictionary API，中文翻譯、KK音標與文法提醒由免費的 Google Gemini API 生成，完全不需要付費。
+      </p>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="search" role="tab" aria-selected="true">🔍 查詢</button>
+      <button class="tab" data-view="book" role="tab" aria-selected="false">
+        📚 單字本 <span class="tab-badge" id="bookCount" hidden>0</span>
+      </button>
+      <button class="tab" data-view="quiz" role="tab" aria-selected="false">🎓 測驗</button>
+      <button class="tab" data-view="stats" role="tab" aria-selected="false">📊 統計</button>
+    </nav>
+
+    <!-- ---------- SEARCH VIEW ---------- -->
+    <section id="view-search" class="view">
+      <form id="searchForm" class="search-bar" autocomplete="off">
+        <input
+          id="searchInput"
+          type="text"
+          inputmode="text"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+          placeholder="輸入英文或中文，例如 resilient 或 蘋果"
+        />
+        <button type="submit" id="searchBtn">查詢</button>
+      </form>
+
+      <div id="status" class="status" hidden></div>
+      <div id="loading" class="loading" hidden><span class="spinner"></span> 查詢中…</div>
+      <div id="resultCard" class="card" hidden></div>
+      <div id="emptyState" class="empty-state">輸入單字後按 Enter 或「查詢」開始</div>
+    </section>
+
+    <!-- ---------- BOOK VIEW ---------- -->
+    <section id="view-book" class="view" hidden>
+      <div class="toolbar">
+        <button id="batchToggleBtn" class="toolbar-btn">➕ 批次加入</button>
+        <button id="exportBtn" class="toolbar-btn">⬇️ 匯出備份</button>
+        <button id="importTriggerBtn" class="toolbar-btn">⬆️ 匯入還原</button>
+        <input id="importFile" type="file" accept="application/json" hidden />
+      </div>
+
+      <div id="batchPanel" class="batch-panel" hidden>
+        <div class="section-label">批次加入單字（逗號或換行分隔，最多 30 個，可中英混合）</div>
+        <textarea id="batchTextarea" rows="4" placeholder="apple, banana, cat&#10;或每行一個，也可以打中文：蘋果、香蕉"></textarea>
+        <button id="batchRunBtn" class="primary-btn">開始批次加入</button>
+        <div id="batchResults" class="batch-results"></div>
+      </div>
+
+      <div id="importMsg" class="status" hidden></div>
+
+      <div id="bookEmpty" class="empty-state">
+        還沒有收藏任何單字。到「查詢」分頁查一個單字，點「收藏」加入單字本吧！
+      </div>
+
+      <div id="bookControls" class="book-controls" hidden>
+        <div id="lightChips" class="chips"></div>
+        <div class="search-bar small">
+          <input id="bookSearchInput" type="text" placeholder="搜尋已收藏的單字…" />
+        </div>
+        <div id="bookFilterChips" class="chips filter-chips"></div>
+      </div>
+
+      <div id="bookList" class="book-list"></div>
+    </section>
+
+    <!-- ---------- QUIZ VIEW ---------- -->
+    <section id="view-quiz" class="view" hidden>
+      <div id="quizSetup">
+        <div id="quizNoWords" class="empty-state" hidden>
+          單字本裡還沒有單字可以測驗，先去收藏幾個單字吧！
+        </div>
+        <div id="quizSetupBody" hidden>
+          <div id="quizLightChips" class="chips" style="justify-content:center;margin-bottom:20px;"></div>
+          <div class="section-label" style="text-align:center;">測驗模式</div>
+          <div class="mode-grid">
+            <button class="mode-btn active" data-mode="mc">🔀<br />選擇題</button>
+            <button class="mode-btn" data-mode="spelling">✏️<br />拼字</button>
+            <button class="mode-btn" data-mode="cloze">🧩<br />克漏字</button>
+          </div>
+          <label class="checkbox-row">
+            <input type="checkbox" id="onlyWeakCheckbox" />
+            只考 Red／Yellow 單字（跳過已熟記或未測驗的字）
+          </label>
+          <div id="quizPoolMsg" class="empty-state" hidden></div>
+          <div id="quizStartWrap" style="text-align:center;" hidden>
+            <button id="quizStartBtn" class="primary-btn">🔀 開始測驗</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="quizPlay" hidden>
+        <div class="quiz-progress">
+          <span id="quizProgressText"></span>
+          <span id="quizScoreText"></span>
+        </div>
+        <div id="quizQuestionCard" class="card quiz-question-card"></div>
+        <div id="quizOptions" class="quiz-options"></div>
+        <button id="quizNextBtn" class="primary-btn" hidden>下一題</button>
+        <button id="quizExitBtn" class="text-btn">結束這輪測驗</button>
+      </div>
+
+      <div id="quizDone" hidden>
+        <div class="card" style="text-align:center;padding:24px;">
+          <h3 style="margin:0 0 8px;">這輪測驗完成了！</h3>
+          <p id="quizDoneSummary" style="color:var(--muted);font-size:14px;margin:0 0 16px;"></p>
+          <div id="quizDoneChips" class="chips" style="justify-content:center;"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button id="quizAgainBtn" class="primary-btn" style="flex:1;">🔁 再測一輪</button>
+          <button id="quizBackBtn" class="secondary-btn" style="flex:1;">返回設定</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- STATS VIEW ---------- -->
+    <section id="view-stats" class="view" hidden>
+      <div id="statsEmpty" class="empty-state">還沒有收藏單字，統計資料會在這裡顯示。</div>
+      <div id="statsBody" hidden>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">收藏單字數</div>
+            <div id="statTotal" class="stat-value"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Mastered Rate</div>
+            <div id="statMastered" class="stat-value" style="color:var(--green);"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">測驗正確率</div>
+            <div id="statAccuracy" class="stat-value" style="color:var(--teal);"></div>
+            <div id="statAttempts" class="stat-sub"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">🔥 連續測驗天數</div>
+            <div id="statStreak" class="stat-value" style="color:var(--amber);"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:18px 20px;margin-top:16px;">
+          <div class="section-label">燈號分布</div>
+          <div id="lightBar" class="light-bar"></div>
+          <div id="statsChips" class="chips"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>字典：Free Dictionary API｜翻譯：MyMemory API｜AI 補充：Google Gemini API（免費額度）</p>
+      <p>所有收藏與測驗資料都存在這個瀏覽器的 localStorage，只在這台裝置上。</p>
+    </footer>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
